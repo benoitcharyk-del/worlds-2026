@@ -9,6 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Worlds 26">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest">
+<script src="config.js"></script>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="description" content="Calendrier, scores en direct, classement de la phase suisse et playoffs des Worlds 2026 de League of Legends, en heure de Paris. Site de fan non officiel.">
@@ -218,6 +219,8 @@ div.m{cursor:pointer}
 .presets{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
 .presets .btn{padding:5px 10px;font-size:13px}
 .bteam small{font-weight:500;color:var(--muted);font-size:12px}
+tr.me td{background:color-mix(in srgb,var(--glow) 14%,transparent)}
+input[type=text]{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;width:100%;min-width:0}
 .bnote{font-size:12px;color:var(--muted);margin-top:8px}
 .bwin{font-weight:700;margin-top:6px;min-height:20px}
 .bmsg{font-size:12px;color:var(--bad);min-height:18px}
@@ -615,7 +618,7 @@ function loadRatings(){
 }
 var ODDS0=1.9,START=1000,wallet={balance:START,bets:[]},betting=null;
 try{var wb=JSON.parse(localStorage.getItem('w26bets')||'null');if(wb&&wb.bets&&typeof wb.balance==='number')wallet=wb;}catch(e){}
-function saveW(){try{localStorage.setItem('w26bets',JSON.stringify(wallet));}catch(e){}}
+function saveW(){try{localStorage.setItem('w26bets',JSON.stringify(wallet));}catch(e){}pushScore();}
 function fmtN(n){return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,' ');}
 function betFor(id){return wallet.bets.filter(function(b){return b.matchId===id;})[0];}
 function canBet(m){
@@ -664,6 +667,7 @@ function renderBets(){
   }
   var h='<div class="wcard"><div class="wl">Mes jetons Worlds</div><div class="wbig">'+fmtN(wallet.balance)+'</div>'+
     '<div class="wsub">'+open.length+' pari'+(open.length>1?'s':'')+' en cours · '+won+' gagné'+(won>1?'s':'')+' · '+lost+' perdu'+(lost>1?'s':'')+' · bilan '+(net>=0?'+':'−')+fmtN(Math.abs(net))+'</div></div>';
+  h+=renderLeague();
   if(open.length)h+='<section class="day"><h2>Paris en cours</h2>'+open.map(row).join('')+'</section>';
   if(done.length)h+='<section class="day"><h2>Historique</h2>'+done.map(row).join('')+'</section>';
   if(!wallet.bets.length)h+='<p class="note">Aucun pari pour l\'instant. Va sur un match à venir et touche « Parier ».</p>';
@@ -713,6 +717,59 @@ $('betForm').addEventListener('submit',function(e){
   saveW();$('betDlg').close();render();
 });
 $('wallet').onclick=function(){ui.tab='bets';try{localStorage.setItem('w26tab','bets');}catch(x){}render();};
+/* ---- classement entre amis (Supabase, optionnel : voir config.js et supabase-setup.sql) ---- */
+var SUPA=window.W26_SUPA||{},lbOn=!!(SUPA.url&&SUPA.key),prof=null,lbRows=null,lbErr='',syncTimer=null;
+try{prof=JSON.parse(localStorage.getItem('w26profile')||'null');}catch(e){}
+function rnd(){var a=new Uint8Array(16);crypto.getRandomValues(a);return Array.prototype.map.call(a,function(x){return ('0'+x.toString(16)).slice(-2);}).join('');}
+function newId(){var h=rnd();return h.slice(0,8)+'-'+h.slice(8,12)+'-4'+h.slice(13,16)+'-a'+h.slice(17,20)+'-'+h.slice(20,32);}
+function sbCall(fn,body){
+  return fetch(SUPA.url+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:SUPA.key,Authorization:'Bearer '+SUPA.key,'Content-Type':'application/json'},body:JSON.stringify(body)})
+    .then(function(r){
+      if(r.ok)return r.status===204?null:r.json().catch(function(){return null;});
+      return r.json().catch(function(){return {};}).then(function(j){throw new Error((j&&j.message)||('http '+r.status));});
+    });
+}
+function betCounts(){
+  return {won:wallet.bets.filter(function(b){return b.status==='won';}).length,lost:wallet.bets.filter(function(b){return b.status==='lost';}).length,
+    eng:wallet.bets.filter(function(b){return b.status==='open';}).reduce(function(s,b){return s+b.stake;},0)};
+}
+function pushScore(now){
+  if(!lbOn||!prof)return Promise.resolve();
+  clearTimeout(syncTimer);
+  var run=function(){
+    var c=betCounts();
+    return sbCall('upsert_player',{p_id:prof.id,p_token:prof.token,p_league:prof.league,p_pseudo:prof.pseudo,p_balance:Math.max(0,Math.min(1000000,Math.round(wallet.balance))),p_engaged:Math.min(1000000,c.eng),p_won:Math.min(10000,c.won),p_lost:Math.min(10000,c.lost)})
+      .then(function(){lbErr='';return loadBoard();}).catch(function(e){lbErr=e.message==='pseudo_pris'?'Ce pseudo est déjà pris dans cette ligue.':'Classement indisponible pour le moment.';if(ui.tab==='bets')render();throw e;});
+  };
+  if(now)return run();
+  syncTimer=setTimeout(function(){run().catch(function(){});},1200);
+  return Promise.resolve();
+}
+function loadBoard(){
+  if(!lbOn||!prof)return Promise.resolve();
+  return sbCall('get_leaderboard',{p_league:prof.league}).then(function(rows){lbRows=rows;if(ui.tab==='bets')render();}).catch(function(){lbErr='Classement indisponible pour le moment.';});
+}
+function renderLeague(){
+  if(!lbOn)return '';
+  var h='<section class="day"><h2>Classement entre amis</h2>';
+  if(!prof){
+    return h+'<div class="wcard"><div class="wsub">Crée ou rejoins une ligue : tes amis tapent le même code que toi.</div>'+
+      '<label>Ton pseudo<input type="text" id="lbPseudo" maxlength="20" autocomplete="off" placeholder="ex : Benoit"></label>'+
+      '<label>Code de la ligue (3 à 20 lettres ou chiffres)<input type="text" id="lbLeague" maxlength="20" autocomplete="off" autocapitalize="none" placeholder="ex : fratrie26"></label>'+
+      (lbErr?'<div class="bmsg">'+esc(lbErr)+'</div>':'')+
+      '<button class="btn primary" data-act="lbjoin">Rejoindre</button></div></section>';
+  }
+  h+='<div class="wsub" style="margin-bottom:8px">Ligue <b>'+esc(prof.league)+'</b> · tu joues sous le nom <b>'+esc(prof.pseudo)+'</b>. Donne ce code à tes amis.</div>';
+  if(lbRows&&lbRows.length){
+    h+='<div class="tbl"><table><thead><tr><th>#</th><th>Joueur</th><th class="c">Jetons</th><th class="c">V-D</th></tr></thead><tbody>'+
+      lbRows.map(function(r,i){return '<tr'+(r.id===prof.id?' class="me"':'')+'><td>'+(i+1)+'</td><td>'+esc(r.pseudo)+'</td><td class="c"><b>'+fmtN(r.total)+'</b>'+(r.engaged?'<br><small>dont '+fmtN(r.engaged)+' engagés</small>':'')+'</td><td class="c">'+r.won+'-'+r.lost+'</td></tr>';}).join('')+
+      '</tbody></table></div>';
+  }else h+='<p class="note">'+(lbErr?esc(lbErr):'Chargement du classement…')+'</p>';
+  if(lbErr&&lbRows)h+='<p class="note">'+esc(lbErr)+'</p>';
+  return h+'<button class="btn" data-act="lbleave" style="margin-top:8px">Quitter la ligue</button></section>';
+}
+setInterval(function(){if(!document.hidden&&ui.tab==='bets')loadBoard();},60000);
+
 /* ---- editing ---- */
 function opts(sel,val){sel.innerHTML='<option value="">À déterminer</option>'+TEAMS.concat(['Cloud9 KIA','FURIA','MVK Esports']).map(function(t){return '<option'+(t===val?' selected':'')+'>'+esc(t)+'</option>';}).join('');}
 function openEdit(id){
@@ -753,6 +810,14 @@ $('tabs').addEventListener('click',function(e){var b=e.target.closest('button');
 $('view').addEventListener('click',function(e){
   var b=e.target.closest('[data-act]');if(!b||b.disabled)return;
   var a=b.dataset.act;
+  if(a==='lbjoin'){
+    var ps=($('lbPseudo').value||'').trim(),lg=($('lbLeague').value||'').trim().toLowerCase();
+    if(ps.length<2||!/^[a-z0-9]{3,20}$/.test(lg)){lbErr='Pseudo de 2 caractères minimum et code de 3 à 20 lettres ou chiffres (sans espace ni accent).';render();return;}
+    prof={id:newId(),token:rnd(),league:lg,pseudo:ps};lbErr='';
+    pushScore(true).then(function(){try{localStorage.setItem('w26profile',JSON.stringify(prof));}catch(x){}render();}).catch(function(){prof=null;render();});
+    return;
+  }
+  if(a==='lbleave'){prof=null;lbRows=null;lbErr='';try{localStorage.removeItem('w26profile');}catch(x){}render();return;}
   if(a==='refill'){wallet.balance+=500;saveW();render();return;}
   if(a==='resetbets'){wallet={balance:START,bets:[]};saveW();render();return;}
   if(a==='fold'){ui.fold=!ui.fold;try{localStorage.setItem('w26fold',ui.fold?'1':'0');}catch(x){}render();return;}
