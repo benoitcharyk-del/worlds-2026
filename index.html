@@ -579,7 +579,7 @@ $('refresh').onclick=function(){
 
 /* ---- paris en jetons Worlds (prototype, jetons fictifs, stockes dans ce navigateur) ---- */
 /* ---- cotes : force des equipes (ratings.json) -> probabilite -> cote ---- */
-var RAT=null,RCACHE=null,MARGIN=0.95,K_LIVE=0.15;
+var RAT=null,RCACHE=null,MARGIN=0.95,K_LIVE=0.15,TEMP=0.8;
 function ratingsNow(){
   if(!RAT)return null;
   if(RCACHE)return RCACHE;
@@ -601,7 +601,7 @@ function seriesP(pg,fmt){
 }
 function winProb(a,b,fmt){
   var R=ratingsNow();if(!R||R[a]==null||R[b]==null)return null;
-  return seriesP(1/(1+Math.exp(-(R[a]-R[b]))),fmt);
+  return seriesP(1/(1+Math.exp(-TEMP*(R[a]-R[b]))),fmt);
 }
 function oddsFor(m){
   var t=teams(m),p=t[0]&&t[1]?winProb(t[0],t[1],m.fmt):null;
