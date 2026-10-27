@@ -1,0 +1,111 @@
+{
+   "asOf" : "2026-10-27T10:38:11Z",
+   "leagues" : {
+      "autre" : -0.727,
+      "cblol" : -2.18,
+      "lck" : 0.425,
+      "lcp" : -1.822,
+      "lcs" : -1.11,
+      "lec" : -0.995,
+      "lpl" : -0.262
+   },
+   "note" : "Bradley-Terry sur les games depuis le 2025-10-01, demi-vie 120 jours",
+   "teams" : {
+      "Anyone's Legend" : {
+         "games" : 152,
+         "league" : "lpl",
+         "r" : 0.108,
+         "winrate" : 0.572
+      },
+      "Bilibili Gaming" : {
+         "games" : 188,
+         "league" : "lpl",
+         "r" : 0.736,
+         "winrate" : 0.697
+      },
+      "CTBC Flying Oyster" : {
+         "games" : 94,
+         "league" : "lcp",
+         "r" : -1.522,
+         "winrate" : 0.457
+      },
+      "Dplus KIA" : {
+         "games" : 139,
+         "league" : "lck",
+         "r" : 0.868,
+         "winrate" : 0.583
+      },
+      "G2 Esports" : {
+         "games" : 137,
+         "league" : "lec",
+         "r" : 0.012,
+         "winrate" : 0.628
+      },
+      "Gen.G" : {
+         "games" : 138,
+         "league" : "lck",
+         "r" : 1.378,
+         "winrate" : 0.725
+      },
+      "Hanwha Life Esports" : {
+         "games" : 135,
+         "league" : "lck",
+         "r" : 0.914,
+         "winrate" : 0.593
+      },
+      "Invictus Gaming" : {
+         "games" : 131,
+         "league" : "lpl",
+         "r" : 0.022,
+         "winrate" : 0.458
+      },
+      "Karmine Corp" : {
+         "games" : 141,
+         "league" : "lec",
+         "r" : -0.145,
+         "winrate" : 0.638
+      },
+      "LYON" : {
+         "games" : 119,
+         "league" : "lcs",
+         "r" : -0.136,
+         "winrate" : 0.63
+      },
+      "Los Grandes" : {
+         "games" : 90,
+         "league" : "cblol",
+         "r" : -1.458,
+         "winrate" : 0.611
+      },
+      "Movistar KOI" : {
+         "games" : 112,
+         "league" : "lec",
+         "r" : -0.62,
+         "winrate" : 0.518
+      },
+      "T1" : {
+         "games" : 169,
+         "league" : "lck",
+         "r" : 0.852,
+         "winrate" : 0.627
+      },
+      "Team Liquid Alienware" : {
+         "games" : 93,
+         "league" : "lcs",
+         "r" : -0.168,
+         "winrate" : 0.634
+      },
+      "Team Secret Whales" : {
+         "games" : 105,
+         "league" : "lcp",
+         "r" : -0.909,
+         "winrate" : 0.648
+      },
+      "Top Esports" : {
+         "games" : 159,
+         "league" : "lpl",
+         "r" : 0.069,
+         "winrate" : 0.535
+      }
+   }
+}

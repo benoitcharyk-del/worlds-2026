@@ -217,6 +217,7 @@ div.m{cursor:pointer}
 .bteam.on{border-color:var(--glow);background:color-mix(in srgb,var(--glow) 12%,var(--bg))}
 .presets{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
 .presets .btn{padding:5px 10px;font-size:13px}
+.bteam small{font-weight:500;color:var(--muted);font-size:12px}
 .bnote{font-size:12px;color:var(--muted);margin-top:8px}
 .bwin{font-weight:700;margin-top:6px;min-height:20px}
 .bmsg{font-size:12px;color:var(--bad);min-height:18px}
@@ -542,6 +543,7 @@ function applyOver(){
   });
 }
 function rebuild(){
+  RCACHE=null;
   state.matches=buildDefault();
   if(apiEvents)applyApi(apiEvents);
   applyOver();
@@ -576,7 +578,42 @@ $('refresh').onclick=function(){
 };
 
 /* ---- paris en jetons Worlds (prototype, jetons fictifs, stockes dans ce navigateur) ---- */
-var ODDS=1.9,START=1000,wallet={balance:START,bets:[]},betting=null;
+/* ---- cotes : force des equipes (ratings.json) -> probabilite -> cote ---- */
+var RAT=null,RCACHE=null,MARGIN=0.95,K_LIVE=0.15;
+function ratingsNow(){
+  if(!RAT)return null;
+  if(RCACHE)return RCACHE;
+  var R={};Object.keys(RAT.teams).forEach(function(t){R[t]=RAT.teams[t].r;});
+  sorted().filter(function(m){return (m.stage==='sw'||m.stage==='ko')&&m.t&&m.t>RAT.asOf&&m.a&&m.b&&winner(m);}).forEach(function(m){
+    if(R[m.a]==null||R[m.b]==null)return;
+    var n=(m.sa||0)+(m.sb||0),p=1/(1+Math.exp(-(R[m.a]-R[m.b]))),d=K_LIVE*((m.sa||0)-n*p);
+    R[m.a]+=d;R[m.b]-=d;
+  });
+  return RCACHE=R;
+}
+function seriesP(pg,fmt){
+  var need=NEED[fmt]||1,q=1-pg,s=0,c=1;
+  for(var k=0;k<need;k++){
+    if(k>0)c=c*(need-1+k)/k;
+    s+=c*Math.pow(pg,need)*Math.pow(q,k);
+  }
+  return s;
+}
+function winProb(a,b,fmt){
+  var R=ratingsNow();if(!R||R[a]==null||R[b]==null)return null;
+  return seriesP(1/(1+Math.exp(-(R[a]-R[b]))),fmt);
+}
+function oddsFor(m){
+  var t=teams(m),p=t[0]&&t[1]?winProb(t[0],t[1],m.fmt):null;
+  if(p==null)return [1.9,1.9];
+  function c(x){return Math.max(1.05,Math.min(8,Math.round(MARGIN/x*100)/100));}
+  return [c(p),c(1-p)];
+}
+function fmtO(x){return x.toFixed(2).replace('.',',');}
+function loadRatings(){
+  fetch('ratings.json',{cache:'no-cache'}).then(function(r){return r.json();}).then(function(j){RAT=j;RCACHE=null;render();}).catch(function(){});
+}
+var ODDS0=1.9,START=1000,wallet={balance:START,bets:[]},betting=null;
 try{var wb=JSON.parse(localStorage.getItem('w26bets')||'null');if(wb&&wb.bets&&typeof wb.balance==='number')wallet=wb;}catch(e){}
 function saveW(){try{localStorage.setItem('w26bets',JSON.stringify(wallet));}catch(e){}}
 function fmtN(n){return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,' ');}
@@ -606,7 +643,7 @@ function betHtml(m){
     var gain=b.status==='won'?' · +'+fmtN(b.payout-b.stake):b.status==='lost'?' · −'+fmtN(b.stake):b.status==='void'?'':' · gain possible '+fmtN(b.stake*b.odds);
     return '<div class="betrow"><span class="bchip '+b.status+'">'+logo(b.team)+'Pari sur '+esc(b.team)+' · '+fmtN(b.stake)+gain+'</span></div>';
   }
-  if(canBet(m))return '<div class="betrow"><button class="bet" data-bet="'+m.id+'">Parier</button><span class="odds">cote '+ODDS.toFixed(2).replace('.',',')+'</span></div>';
+  if(canBet(m))return '<div class="betrow"><button class="bet" data-bet="'+m.id+'">Parier</button><span class="odds">cotes '+fmtO(oddsFor(m)[0])+' · '+fmtO(oddsFor(m)[1])+'</span></div>';
   return '';
 }
 function renderWallet(){
@@ -631,25 +668,31 @@ function renderBets(){
   if(done.length)h+='<section class="day"><h2>Historique</h2>'+done.map(row).join('')+'</section>';
   if(!wallet.bets.length)h+='<p class="note">Aucun pari pour l\'instant. Va sur un match à venir et touche « Parier ».</p>';
   if(wallet.balance<10&&!open.length)h+='<button class="btn primary" data-act="refill">Recevoir 500 jetons</button>';
-  h+='<p class="note">Jetons fictifs, sans aucune valeur. Cote fixe de '+ODDS.toFixed(2).replace('.',',')+' sur le vainqueur du match. Tu peux miser jusqu\'au début du match. Les paris se règlent seuls dès que le résultat officiel est publié.</p>'+
+  if(RAT){
+    var R=ratingsNow(),names=Object.keys(R).sort(function(a,b){return R[b]-R[a];});
+    h+='<section class="day"><h2>Force des équipes</h2><div class="tbl"><table><thead><tr><th>#</th><th>Équipe</th><th class="c">Winrate</th><th class="c">Force</th></tr></thead><tbody>'+
+      names.map(function(t,i){var x=RAT.teams[t];return '<tr><td>'+(i+1)+'</td><td>'+teamHtml(t)+'</td><td class="c">'+Math.round(x.winrate*100)+' %<br><small>'+x.games+' games</small></td><td class="c"><b>'+Math.round(100/(1+Math.exp(-R[t])))+'</b></td></tr>';}).join('')+
+      '</tbody></table></div><p class="note">Winrate sur les games jouées depuis octobre 2025 (ligues régionales, MSI, Worlds…). La force tient compte du niveau de la ligue de chaque équipe, estimé grâce aux matchs internationaux, et se met à jour avec les résultats des Worlds. Force = chances de gagner une game contre une équipe moyenne des Worlds (50 = niveau moyen).</p></section>';
+  }
+  h+='<p class="note">Jetons fictifs, sans aucune valeur. Les cotes viennent de la force de chaque équipe (voir plus bas), avec une marge de 5 %. Tu peux miser jusqu\'au début du match. Les paris se règlent seuls dès que le résultat officiel est publié.</p>'+
     '<button class="btn" data-act="resetbets">Recommencer à '+fmtN(START)+' jetons</button>';
   return h;
 }
 function openBet(id){
   var m=state.matches.filter(function(x){return x.id===id;})[0];if(!m||!canBet(m))return;
-  betting={m:m,team:null};
-  var t=teams(m);
+  var t=teams(m),od=oddsFor(m);
+  betting={m:m,team:null,odds:{}};betting.odds[t[0]]=od[0];betting.odds[t[1]]=od[1];
   $('betTitle').textContent=m.label+' · '+m.fmt;
-  $('betTeams').innerHTML=t.map(function(n){return '<button type="button" class="bteam" data-team="'+esc(n)+'">'+logo(n)+'<span>'+esc(n)+'</span></button>';}).join('');
+  $('betTeams').innerHTML=t.map(function(n){return '<button type="button" class="bteam" data-team="'+esc(n)+'">'+logo(n)+'<span>'+esc(n)+'</span><small>cote '+fmtO(betting.odds[n])+'</small></button>';}).join('');
   $('betStake').value=Math.min(100,wallet.balance);$('betStake').max=wallet.balance;
   $('betBal').textContent=fmtN(wallet.balance)+' jetons disponibles';
   updateBet();
   $('betDlg').showModal();
 }
 function updateBet(){
-  var stake=Math.floor(+$('betStake').value||0),ok=betting&&betting.team&&stake>=10&&stake<=wallet.balance;
+  var stake=Math.floor(+$('betStake').value||0),bo=betting&&betting.team?betting.odds[betting.team]:ODDS0,ok=betting&&betting.team&&stake>=10&&stake<=wallet.balance;
   Array.prototype.forEach.call($('betTeams').children,function(b){b.classList.toggle('on',b.dataset.team===(betting&&betting.team));});
-  $('betWin').textContent=stake>=1?'Gain possible : '+fmtN(stake*ODDS)+' jetons (cote '+ODDS.toFixed(2).replace('.',',')+')':'';
+  $('betWin').textContent=stake>=1?'Gain possible : '+fmtN(stake*bo)+' jetons (cote '+fmtO(bo)+')':'';
   $('betOk').disabled=!ok;
   $('betMsg').textContent=!betting||!betting.team?'Choisis une équipe.':stake<10?'Mise minimale : 10 jetons.':stake>wallet.balance?'Tu n\'as pas assez de jetons.':'';
 }
@@ -666,7 +709,7 @@ $('betForm').addEventListener('submit',function(e){
   if(!m||!betting.team||stake<10||stake>wallet.balance||!canBet(m))return;
   var t=teams(m);
   wallet.balance-=stake;
-  wallet.bets.push({matchId:m.id,a:t[0],b:t[1],team:betting.team,stake:stake,odds:ODDS,at:Date.now(),status:'open',payout:0});
+  wallet.bets.push({matchId:m.id,a:t[0],b:t[1],team:betting.team,stake:stake,odds:betting.odds[betting.team],at:Date.now(),status:'open',payout:0});
   saveW();$('betDlg').close();render();
 });
 $('wallet').onclick=function(){ui.tab='bets';try{localStorage.setItem('w26tab','bets');}catch(x){}render();};
@@ -742,7 +785,7 @@ document.addEventListener('click',function(e){
   if(e.target.closest('button,a,input,select,label,dialog,.m,.tbl,.fold,.next,.note,.tabs,.favbar,.pager,.foot'))return;
   setFocus(!document.body.classList.contains('focus'));
 });
-rebuild();render();loadApi();
+rebuild();render();loadApi();loadRatings();
 setInterval(function(){if(!document.hidden)loadApi();},45000);
 document.addEventListener('visibilitychange',function(){if(!document.hidden)loadApi();});
 })();
