@@ -239,6 +239,7 @@ input[type=text]{font:inherit;color:var(--ink);background:var(--bg);border:1px s
 .stakeRow label{width:110px}
 .stakeRow .bwin{flex:1;min-height:0;margin:0 0 8px;font-size:13px}
 .presets{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lname{font-size:26px!important;-webkit-text-fill-color:transparent}
 .kinds{display:flex;gap:6px;margin-bottom:10px}
 .kind{flex:1;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:7px 4px;font-weight:600;font-size:13px}
 .kind.on{border-color:var(--glow);background:color-mix(in srgb,var(--glow) 14%,var(--bg))}
@@ -906,24 +907,34 @@ function loadBoard(){
   if(!lbOn||!prof)return Promise.resolve();
   return sbCall('get_leaderboard',{p_league:prof.league}).then(function(rows){lbRows=rows;if(ui.tab==='bets')render();}).catch(function(){lbErr='Classement indisponible pour le moment.';});
 }
+var lbMode='create';
+function genCode(){return String(Math.floor(10000+Math.random()*90000));}
+function joinLeague(code,name,pseudo){
+  prof={id:newId(),token:rnd(),league:code,leagueName:name||null,pseudo:pseudo};lbErr='';
+  return pushScore(true).then(function(){try{localStorage.setItem('w26profile',JSON.stringify(prof));}catch(x){}render();}).catch(function(){prof=null;render();});
+}
 function renderLeague(){
   if(!lbOn)return '';
   var h='<section class="day"><h2>Classement entre amis</h2>';
   if(!prof){
-    return h+'<div class="wcard"><div class="wsub">Crée ou rejoins une ligue : tes amis tapent le même code que toi.</div>'+
+    return h+'<div class="wcard"><div class="kinds"><button type="button" class="kind'+(lbMode==='create'?' on':'')+'" data-act="lbmode" data-m="create">Créer une ligue</button><button type="button" class="kind'+(lbMode==='join'?' on':'')+'" data-act="lbmode" data-m="join">Rejoindre</button></div>'+
+      (lbMode==='create'
+        ?'<div class="wsub">Donne un nom à ta ligue. Un code à 5 chiffres est créé pour toi : tes amis l\'utiliseront pour te rejoindre.</div><label>Nom de la ligue<input type="text" id="lbName" maxlength="30" autocomplete="off" placeholder="ex : Les frères Worlds"></label>'
+        :'<div class="wsub">Tape le code que ton ami t\'a donné.</div><label>Code de la ligue<input type="text" id="lbLeague" maxlength="20" inputmode="numeric" autocomplete="off" placeholder="ex : 73299"></label>')+
       '<label>Ton pseudo<input type="text" id="lbPseudo" maxlength="20" autocomplete="off" placeholder="ex : Benoit"></label>'+
-      '<label>Code de la ligue (3 à 20 lettres ou chiffres)<input type="text" id="lbLeague" maxlength="20" autocomplete="off" autocapitalize="none" placeholder="ex : fratrie26"></label>'+
       (lbErr?'<div class="bmsg">'+esc(lbErr)+'</div>':'')+
-      '<button class="btn primary" data-act="lbjoin">Rejoindre</button></div></section>';
+      '<button class="btn primary" data-act="'+(lbMode==='create'?'lbcreate':'lbjoin')+'">'+(lbMode==='create'?'Créer et rejoindre':'Rejoindre')+'</button></div></section>';
   }
-  h+='<div class="wsub" style="margin-bottom:8px">Ligue <b>'+esc(prof.league)+'</b> · tu joues sous le nom <b>'+esc(prof.pseudo)+'</b>. Donne ce code à tes amis.</div>';
+  h+='<div class="wcard"><div class="wl">Ma ligue</div><div class="wbig lname">'+esc(prof.leagueName||prof.league)+'</div>'+
+    '<div class="wsub">Code <b>'+esc(prof.league)+'</b> · tu joues sous le nom <b>'+esc(prof.pseudo)+'</b></div>'+
+    '<div style="display:flex;gap:8px;margin-top:6px"><button class="btn" data-act="lbcopy">Copier le code</button><button class="btn" data-act="lbleave">Quitter la ligue</button></div></div>';
   if(lbRows&&lbRows.length){
     h+='<div class="tbl"><table><thead><tr><th>#</th><th>Joueur</th><th class="c">Jetons</th><th class="c">V-D</th></tr></thead><tbody>'+
       lbRows.map(function(r,i){return '<tr'+(r.id===prof.id?' class="me"':'')+'><td>'+(i+1)+'</td><td>'+esc(r.pseudo)+'</td><td class="c"><b>'+fmtN(r.total)+'</b>'+(r.engaged?'<br><small>dont '+fmtN(r.engaged)+' engagés</small>':'')+'</td><td class="c">'+r.won+'-'+r.lost+'</td></tr>';}).join('')+
       '</tbody></table></div>';
   }else h+='<p class="note">'+(lbErr?esc(lbErr):'Chargement du classement…')+'</p>';
   if(lbErr&&lbRows)h+='<p class="note">'+esc(lbErr)+'</p>';
-  return h+'<button class="btn" data-act="lbleave" style="margin-top:8px">Quitter la ligue</button></section>';
+  return h+'</section>';
 }
 setInterval(function(){if(!document.hidden&&ui.tab==='bets')loadBoard();},60000);
 
@@ -967,11 +978,32 @@ $('tabs').addEventListener('click',function(e){var b=e.target.closest('button');
 $('view').addEventListener('click',function(e){
   var b=e.target.closest('[data-act]');if(!b||b.disabled)return;
   var a=b.dataset.act;
+  if(a==='lbmode'){lbMode=b.dataset.m;lbErr='';render();return;}
+  if(a==='lbcopy'){
+    var cp=prof&&prof.league;
+    (navigator.clipboard?navigator.clipboard.writeText(cp):Promise.reject()).then(function(){lbErr='Code copié : '+cp;render();}).catch(function(){lbErr='Ton code : '+cp;render();});
+    return;
+  }
+  if(a==='lbcreate'){
+    var nm=($('lbName').value||'').trim(),ps=($('lbPseudo').value||'').trim();
+    if(nm.length<2||ps.length<2){lbErr='Un nom de ligue et un pseudo de 2 caractères minimum.';render();return;}
+    var tries=0;
+    var attempt=function(){
+      var code=genCode();
+      return sbCall('create_league',{p_code:code,p_name:nm}).then(function(){return joinLeague(code,nm,ps);}).catch(function(e){
+        if(e.message==='code_pris'&&tries++<4)return attempt();
+        lbErr='Impossible de créer la ligue pour le moment.';render();
+      });
+    };
+    attempt();return;
+  }
   if(a==='lbjoin'){
-    var ps=($('lbPseudo').value||'').trim(),lg=($('lbLeague').value||'').trim().toLowerCase();
-    if(ps.length<2||!/^[a-z0-9]{3,20}$/.test(lg)){lbErr='Pseudo de 2 caractères minimum et code de 3 à 20 lettres ou chiffres (sans espace ni accent).';render();return;}
-    prof={id:newId(),token:rnd(),league:lg,pseudo:ps};lbErr='';
-    pushScore(true).then(function(){try{localStorage.setItem('w26profile',JSON.stringify(prof));}catch(x){}render();}).catch(function(){prof=null;render();});
+    var lg=($('lbLeague').value||'').trim().toLowerCase(),ps2=($('lbPseudo').value||'').trim();
+    if(ps2.length<2||!/^[a-z0-9]{3,20}$/.test(lg)){lbErr='Pseudo de 2 caractères minimum et code de 3 à 20 lettres ou chiffres.';render();return;}
+    sbCall('get_league',{p_code:lg}).then(function(rows){
+      if(!rows||!rows.length){lbErr='Code inconnu : vérifie-le auprès de ton ami.';render();return;}
+      return joinLeague(lg,rows[0].name,ps2);
+    }).catch(function(){lbErr='Impossible de joindre le serveur pour le moment.';render();});
     return;
   }
   if(a==='lbleave'){prof=null;lbRows=null;lbErr='';try{localStorage.removeItem('w26profile');}catch(x){}render();return;}
@@ -1007,7 +1039,7 @@ document.addEventListener('click',function(e){
   if(e.target.closest('button,a,input,select,label,dialog,.m,.tbl,.fold,.next,.note,.tabs,.favbar,.pager,.foot'))return;
   setFocus(!document.body.classList.contains('focus'));
 });
-var BUILD='20261027125314';
+var BUILD='20261027130313';
 /* si une version plus recente existe, on recharge avec une adresse neuve (evite le cache du telephone) */
 fetch('version.json?'+Date.now(),{cache:'no-store'}).then(function(r){return r.json();}).then(function(v){
   if(v&&v.build&&v.build!==BUILD&&location.search.indexOf('b='+v.build)<0){
