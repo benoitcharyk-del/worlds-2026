@@ -194,6 +194,8 @@ label{display:grid;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
 select,input[type=number],input[type=datetime-local]{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;width:100%;min-width:0}
 .grid2{display:grid;grid-template-columns:1fr 84px;gap:10px;margin-bottom:10px}
 .actions{display:flex;gap:8px;justify-content:space-between;margin-top:14px;flex-wrap:wrap}
+#wallet{border-color:color-mix(in srgb,var(--glow) 70%,transparent);color:#fff;font-weight:700}
+#wallet.on{background:linear-gradient(90deg,#4f7bff,#9b6bff);border-color:transparent}
 /* telephone : tout tient en largeur, sans defilement lateral */
 @media (max-width:560px){
   .hm{display:none}
@@ -275,7 +277,6 @@ input[type=text]{font:inherit;color:var(--ink);background:var(--bg);border:1px s
       <button role="tab" data-t="qf" aria-selected="false">Quarts</button>
       <button role="tab" data-t="sf" aria-selected="false">Demies</button>
       <button role="tab" data-t="f" aria-selected="false">Finale</button>
-      <button role="tab" data-t="bets" aria-selected="false">Paris</button>
     </div>
     <div class="favbar"><label class="fav-toggle"><input type="checkbox" id="favOnly"> Mes favoris uniquement</label><button class="btn" id="favEdit">Choisir</button></div>
   </div>
@@ -734,7 +735,8 @@ function betHtml(m){
 }
 function renderWallet(){
   var open=wallet.bets.filter(function(b){return b.status==='open';}).reduce(function(s,b){return s+b.stake;},0);
-  $('wallet').textContent=fmtN(wallet.balance)+' jetons';
+  $('wallet').textContent='Paris · '+fmtN(wallet.balance)+' jetons';
+  $('wallet').classList.toggle('on',ui.tab==='bets');
   $('wallet').title=open?fmtN(open)+' jetons engagés dans des paris en cours':'Jetons Worlds (fictifs)';
 }
 function renderBets(){
