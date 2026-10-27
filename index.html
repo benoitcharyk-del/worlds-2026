@@ -233,6 +233,12 @@ div.m{cursor:pointer}
 .bteam small{font-weight:500;color:var(--muted);font-size:12px}
 tr.me td{background:color-mix(in srgb,var(--glow) 14%,transparent)}
 input[type=text]{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;width:100%;min-width:0}
+.bsec{margin-bottom:14px}
+.bsec h4{font:600 13px var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.stakeRow{display:flex;align-items:flex-end;gap:10px;margin-top:8px;flex-wrap:wrap}
+.stakeRow label{width:110px}
+.stakeRow .bwin{flex:1;min-height:0;margin:0 0 8px;font-size:13px}
+.presets{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .kinds{display:flex;gap:6px;margin-bottom:10px}
 .kind{flex:1;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:7px 4px;font-weight:600;font-size:13px}
 .kind.on{border-color:var(--glow);background:color-mix(in srgb,var(--glow) 14%,var(--bg))}
@@ -289,12 +295,19 @@ input[type=text]{font:inherit;color:var(--ink);background:var(--bg);border:1px s
 <dialog id="betDlg">
   <form method="dialog" id="betForm">
     <h3 id="betTitle">Parier</h3>
-    <div id="betKinds" class="kinds"></div>
-    <div id="betOpts"></div>
-    <label>Mise (jetons)<input type="number" id="betStake" min="10" step="10" inputmode="numeric"></label>
-    <div id="betPresets" class="presets"><button type="button" class="btn" data-v="50">50</button><button type="button" class="btn" data-v="100">100</button><button type="button" class="btn" data-v="250">250</button><button type="button" class="btn" data-v="500">500</button><button type="button" class="btn" data-v="max">Tout</button></div>
+    <section class="bsec">
+      <h4>Vainqueur du match</h4>
+      <div id="optsWinner" class="bteams"></div>
+      <div class="stakeRow"><label>Mise<input type="number" id="stakeWinner" min="10" step="10" inputmode="numeric"></label><span class="bwin" id="winWinner"></span></div>
+    </section>
+    <section class="bsec" id="secScore">
+      <h4>Score exact</h4>
+      <div id="optsScore" class="bopts"></div>
+      <div class="stakeRow"><label>Mise<input type="number" id="stakeScore" min="10" step="10" inputmode="numeric"></label><span class="bwin" id="winScore"></span></div>
+    </section>
+    <div class="presets"><span class="bnote">Mise rapide :</span><span id="betPresets"><button type="button" class="btn" data-v="50">50</button> <button type="button" class="btn" data-v="100">100</button> <button type="button" class="btn" data-v="250">250</button> <button type="button" class="btn" data-v="500">500</button> <button type="button" class="btn" data-v="max">Tout</button></span></div>
     <div class="bnote" id="betBal"></div>
-    <div class="bwin" id="betWin"></div>
+    <div class="bwin" id="betTotal"></div>
     <div class="bmsg" id="betMsg"></div>
     <div class="actions" style="justify-content:flex-end"><button type="button" class="btn" id="betCancel">Annuler</button><button type="submit" class="btn primary" id="betOk">Valider le pari</button></div>
   </form>
@@ -768,54 +781,65 @@ function renderBets(){
   return h;
 }
 
-/* ---- fenetre de pari ---- */
-var KINDS=[['winner','Vainqueur'],['score','Score exact'],['seq','Déroulé']];
+/* ---- fenetre de pari : vainqueur et score exact en une seule validation ---- */
 function openBet(id){
   var m=state.matches.filter(function(x){return x.id===id;})[0];if(!m||!canBet(m))return;
   var multi=(NEED[m.fmt]||1)>1;
-  betting={m:m,kind:'winner',pick:null,opts:[]};
+  betting={m:m,pick:{winner:null,score:null},opts:{winner:betOptions(m,'winner'),score:multi?betOptions(m,'score'):[]}};
   $('betTitle').textContent=m.label+' · '+m.fmt;
-  $('betKinds').hidden=!multi;
-  $('betStake').value=Math.min(100,wallet.balance);$('betStake').max=wallet.balance;
+  $('secScore').hidden=!multi;
+  $('optsWinner').innerHTML=betting.opts.winner.map(function(o,i){return '<button type="button" class="bteam" data-k="winner" data-i="'+i+'">'+logo(o.team)+'<span>'+esc(o.team)+'</span><small>cote '+fmtO(o.odds)+'</small></button>';}).join('');
+  $('optsScore').innerHTML=betting.opts.score.map(function(o,i){return '<button type="button" class="bopt" data-k="score" data-i="'+i+'"><span>'+esc(o.short)+'</span><b>'+fmtO(o.odds)+'</b></button>';}).join('');
+  var def=Math.max(0,Math.min(100,Math.floor(wallet.balance/(multi?2:1))));
+  $('stakeWinner').value=def;$('stakeScore').value=def;
   $('betBal').textContent=fmtN(wallet.balance)+' jetons disponibles';
-  setKind('winner');
+  updateBet();
   $('betDlg').showModal();
 }
-function setKind(k){
-  betting.kind=k;betting.pick=null;betting.opts=betOptions(betting.m,k);
-  $('betKinds').innerHTML=KINDS.map(function(x){return '<button type="button" class="kind'+(x[0]===k?' on':'')+'" data-kind="'+x[0]+'">'+x[1]+'</button>';}).join('');
-  var box=$('betOpts');
-  box.className=k==='winner'?'bteams':'bopts';
-  box.innerHTML=betting.opts.map(function(o,i){
-    if(k==='winner')return '<button type="button" class="bteam" data-i="'+i+'">'+logo(o.team)+'<span>'+esc(o.team)+'</span><small>cote '+fmtO(o.odds)+'</small></button>';
-    return '<button type="button" class="bopt" data-i="'+i+'"><span>'+esc(o.short)+'</span><b>'+fmtO(o.odds)+'</b></button>';
-  }).join('');
-  updateBet();
-}
+function stakeOf(k){return Math.floor(+$(k==='winner'?'stakeWinner':'stakeScore').value||0);}
 function updateBet(){
-  var stake=Math.floor(+$('betStake').value||0),pick=betting&&betting.pick,bo=pick?pick.odds:0;
-  Array.prototype.forEach.call($('betOpts').children,function(b){b.classList.toggle('on',pick&&+b.dataset.i===betting.opts.indexOf(pick));});
-  $('betWin').textContent=pick&&stake>=1?'Gain possible : '+fmtN(stake*bo)+' jetons (cote '+fmtO(bo)+')':'';
-  var ok=pick&&stake>=10&&stake<=wallet.balance;
-  $('betOk').disabled=!ok;
-  $('betMsg').textContent=!pick?'Choisis une option.':stake<10?'Mise minimale : 10 jetons.':stake>wallet.balance?'Tu n\'as pas assez de jetons.':'';
+  var total=0,n=0,bad='';
+  ['winner','score'].forEach(function(k){
+    var pick=betting.pick[k],stake=stakeOf(k),cap=k==='winner'?'Winner':'Score';
+    $('win'+cap).textContent=pick&&stake>=1?'Gain possible : '+fmtN(stake*pick.odds)+' jetons (cote '+fmtO(pick.odds)+')':'';
+    if(pick){n++;total+=stake;if(stake<10)bad='Mise minimale : 10 jetons par pari.';}
+    var box=k==='winner'?$('optsWinner'):$('optsScore');
+    Array.prototype.forEach.call(box.children,function(b){b.classList.toggle('on',!!pick&&+b.dataset.i===betting.opts[k].indexOf(pick));});
+  });
+  var msg=!n?'Choisis au moins une option.':bad||(total>wallet.balance?'Tu n\'as pas assez de jetons pour tout valider.':'');
+  $('betTotal').textContent=n?'Total misé : '+fmtN(total)+' jeton'+(total>1?'s':'')+' sur '+n+' pari'+(n>1?'s':''):'';
+  $('betMsg').textContent=msg;
+  $('betOk').disabled=!!msg;
+  $('betOk').textContent=n>1?'Valider les '+n+' paris':'Valider le pari';
 }
-$('betKinds').addEventListener('click',function(e){var b=e.target.closest('[data-kind]');if(b)setKind(b.dataset.kind);});
-$('betOpts').addEventListener('click',function(e){var b=e.target.closest('[data-i]');if(!b)return;betting.pick=betting.opts[+b.dataset.i];updateBet();});
-$('betStake').addEventListener('input',updateBet);
+$('betDlg').addEventListener('click',function(e){
+  var b=e.target.closest('[data-k]');if(!b)return;
+  var k=b.dataset.k,o=betting.opts[k][+b.dataset.i];
+  betting.pick[k]=betting.pick[k]===o?null:o;
+  updateBet();
+});
+$('stakeWinner').addEventListener('input',updateBet);
+$('stakeScore').addEventListener('input',updateBet);
 $('betPresets').addEventListener('click',function(e){
   var b=e.target.closest('button');if(!b)return;
-  $('betStake').value=b.dataset.v==='max'?wallet.balance:Math.min(+b.dataset.v,wallet.balance);updateBet();
+  var v=b.dataset.v==='max'?wallet.balance:Math.min(+b.dataset.v,wallet.balance);
+  var picked=['winner','score'].filter(function(k){return betting.pick[k];});
+  if(b.dataset.v==='max'&&picked.length>1)v=Math.floor(wallet.balance/picked.length);
+  $('stakeWinner').value=v;$('stakeScore').value=v;updateBet();
 });
 $('betCancel').onclick=function(){$('betDlg').close();};
 $('betForm').addEventListener('submit',function(e){
   e.preventDefault();
-  var m=betting&&betting.m,pick=betting&&betting.pick,stake=Math.floor(+$('betStake').value||0);
-  if(!m||!pick||stake<10||stake>wallet.balance||!canBet(m))return;
-  if(betsFor(m.id).some(function(b){return (b.kind||'winner')===betting.kind&&b.key===pick.key;})){$('betMsg').textContent='Tu as déjà ce pari sur ce match.';return;}
+  var m=betting&&betting.m;if(!m||!canBet(m))return;
+  var todo=['winner','score'].filter(function(k){return betting.pick[k];}).map(function(k){return {k:k,pick:betting.pick[k],stake:stakeOf(k)};});
+  var total=todo.reduce(function(s,x){return s+x.stake;},0);
+  if(!todo.length||todo.some(function(x){return x.stake<10;})||total>wallet.balance)return;
+  if(todo.some(function(x){return betsFor(m.id).some(function(b){return (b.kind||'winner')===x.k&&b.key===x.pick.key;});})){$('betMsg').textContent='Tu as déjà ce pari sur ce match.';return;}
   var t=teams(m);
-  wallet.balance-=stake;
-  wallet.bets.push({matchId:m.id,mid:m.mid||null,a:t[0],b:t[1],fmt:m.fmt,kind:betting.kind,key:pick.key,label:pick.label,team:pick.team||null,stake:stake,odds:pick.odds,at:Date.now(),status:'open',payout:0});
+  todo.forEach(function(x){
+    wallet.balance-=x.stake;
+    wallet.bets.push({matchId:m.id,mid:m.mid||null,a:t[0],b:t[1],fmt:m.fmt,kind:x.k,key:x.pick.key,label:x.pick.label,team:x.pick.team||null,stake:x.stake,odds:x.pick.odds,at:Date.now(),status:'open',payout:0});
+  });
   saveW();$('betDlg').close();render();
 });
 $('wallet').onclick=function(){ui.tab='bets';try{localStorage.setItem('w26tab','bets');}catch(x){}render();};
@@ -983,7 +1007,7 @@ document.addEventListener('click',function(e){
   if(e.target.closest('button,a,input,select,label,dialog,.m,.tbl,.fold,.next,.note,.tabs,.favbar,.pager,.foot'))return;
   setFocus(!document.body.classList.contains('focus'));
 });
-var BUILD='20261027124839';
+var BUILD='20261027125314';
 /* si une version plus recente existe, on recharge avec une adresse neuve (evite le cache du telephone) */
 fetch('version.json?'+Date.now(),{cache:'no-store'}).then(function(r){return r.json();}).then(function(v){
   if(v&&v.build&&v.build!==BUILD&&location.search.indexOf('b='+v.build)<0){
