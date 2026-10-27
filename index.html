@@ -983,6 +983,13 @@ document.addEventListener('click',function(e){
   if(e.target.closest('button,a,input,select,label,dialog,.m,.tbl,.fold,.next,.note,.tabs,.favbar,.pager,.foot'))return;
   setFocus(!document.body.classList.contains('focus'));
 });
+var BUILD='20261027124839';
+/* si une version plus recente existe, on recharge avec une adresse neuve (evite le cache du telephone) */
+fetch('version.json?'+Date.now(),{cache:'no-store'}).then(function(r){return r.json();}).then(function(v){
+  if(v&&v.build&&v.build!==BUILD&&location.search.indexOf('b='+v.build)<0){
+    var u=new URL(location.href);u.searchParams.set('b',v.build);location.replace(u.toString());
+  }
+}).catch(function(){});
 rebuild();render();loadApi();loadRatings();
 setInterval(function(){if(!document.hidden)loadApi();},45000);
 document.addEventListener('visibilitychange',function(){if(!document.hidden)loadApi();});
