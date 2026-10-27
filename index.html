@@ -194,6 +194,16 @@ label{display:grid;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
 select,input[type=number],input[type=datetime-local]{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;width:100%;min-width:0}
 .grid2{display:grid;grid-template-columns:1fr 84px;gap:10px;margin-bottom:10px}
 .actions{display:flex;gap:8px;justify-content:space-between;margin-top:14px;flex-wrap:wrap}
+/* telephone : tout tient en largeur, sans defilement lateral */
+@media (max-width:560px){
+  .hm{display:none}
+  table{min-width:0}
+  th,td{padding:8px 7px}
+  .tm{font-size:14px}
+  .tabs{width:100%;gap:2px;padding:2px}
+  .tabs button{flex:1 1 auto;padding:7px 3px;font-size:13px}
+  .bar{gap:10px}
+}
 /* paris */
 div.m{cursor:pointer}
 .betrow{grid-column:1/-1;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-top:6px;border-top:1px dashed var(--line);margin-top:2px}
@@ -456,11 +466,11 @@ function renderSwiss(){
   var rows=standings().filter(function(r){return !ui.favOnly||FAV[r.t];});
   var h='<button class="fold" data-act="fold" aria-expanded="'+(!ui.fold)+'"><span>Classement de la phase suisse</span><i>'+(ui.fold?'&#9662;':'&#9652;')+'</i></button>';
   if(ui.fold)return h;
-  h+='<div class="tbl"><table><thead><tr><th>Équipe</th><th class="c">V-D</th><th>Parcours</th><th>Statut</th></tr></thead><tbody>';
+  h+='<div class="tbl"><table><thead><tr><th>Équipe</th><th class="c">V-D</th><th class="hm">Parcours</th><th>Statut</th></tr></thead><tbody>';
   rows.forEach(function(r){
     var st=r.w>=3?'<span class="st q">Qualifiée</span>':r.l>=3?'<span class="st e">Éliminée</span>':'<span class="st p">En course</span>';
     var dots='<span class="dots">'+r.h.map(function(x){return '<b class="'+x+'"></b>';}).join('')+'</span>';
-    h+='<tr><td>'+teamHtml(r.t)+'</td><td class="c"><b>'+r.w+'-'+r.l+'</b></td><td>'+dots+'</td><td>'+st+'</td></tr>';
+    h+='<tr><td>'+teamHtml(r.t)+'</td><td class="c"><b>'+r.w+'-'+r.l+'</b></td><td class="hm">'+dots+'</td><td>'+st+'</td></tr>';
   });
   return h+'</tbody></table></div><p class="note">Qualifiée à 3 victoires, éliminée à 3 défaites. Tirage du premier tour fait le 18 octobre. Les affiches des rondes suivantes se complètent au fil de la phase.</p>';
 }
