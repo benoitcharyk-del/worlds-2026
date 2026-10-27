@@ -722,8 +722,9 @@ var SUPA=window.W26_SUPA||{},lbOn=!!(SUPA.url&&SUPA.key),prof=null,lbRows=null,l
 try{prof=JSON.parse(localStorage.getItem('w26profile')||'null');}catch(e){}
 function rnd(){var a=new Uint8Array(16);crypto.getRandomValues(a);return Array.prototype.map.call(a,function(x){return ('0'+x.toString(16)).slice(-2);}).join('');}
 function newId(){var h=rnd();return h.slice(0,8)+'-'+h.slice(8,12)+'-4'+h.slice(13,16)+'-a'+h.slice(17,20)+'-'+h.slice(20,32);}
+function authHeaders(){var h={apikey:SUPA.key,"Content-Type":"application/json"};if(/^eyJ/.test(SUPA.key))h.Authorization="Bearer "+SUPA.key;return h;}
 function sbCall(fn,body){
-  return fetch(SUPA.url+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:SUPA.key,Authorization:'Bearer '+SUPA.key,'Content-Type':'application/json'},body:JSON.stringify(body)})
+  return fetch(SUPA.url+'/rest/v1/rpc/'+fn,{method:'POST',headers:authHeaders(),body:JSON.stringify(body)})
     .then(function(r){
       if(r.ok)return r.status===204?null:r.json().catch(function(){return null;});
       return r.json().catch(function(){return {};}).then(function(j){throw new Error((j&&j.message)||('http '+r.status));});
