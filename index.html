@@ -193,6 +193,33 @@ label{display:grid;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
 select,input[type=number],input[type=datetime-local]{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;width:100%;min-width:0}
 .grid2{display:grid;grid-template-columns:1fr 84px;gap:10px;margin-bottom:10px}
 .actions{display:flex;gap:8px;justify-content:space-between;margin-top:14px;flex-wrap:wrap}
+/* paris */
+div.m{cursor:pointer}
+.betrow{grid-column:1/-1;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-top:6px;border-top:1px dashed var(--line);margin-top:2px}
+.bet{border:0;border-radius:8px;background:linear-gradient(90deg,#4f7bff,#9b6bff);color:#fff;font-weight:700;font-size:13px;padding:5px 14px}
+.odds{font-size:12px;color:var(--muted)}
+.bchip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;border-radius:99px;padding:2px 10px 2px 3px;background:var(--soft);color:var(--ink)}
+.bchip .tl{width:18px;height:18px;padding:2px}
+.bchip.won{color:var(--ok)} .bchip.lost{color:var(--bad)} .bchip.void{color:var(--muted)}
+#wallet{font-variant-numeric:tabular-nums}
+.wcard{margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:grid;gap:4px}
+.wl{font:600 12px var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.wbig{font:700 40px/1 var(--display);font-variant-numeric:tabular-nums;background:linear-gradient(90deg,#4f7bff,#b58cff);-webkit-background-clip:text;background-clip:text;color:transparent;width:fit-content}
+.wsub{font-size:13px;color:var(--muted)}
+.brow{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:9px 12px;margin-bottom:6px;display:grid;gap:3px}
+.btop{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.bsub{font-size:12px;color:var(--muted)}
+.bres{font:700 18px var(--display);font-variant-numeric:tabular-nums}
+.bres.won{color:var(--ok)} .bres.lost{color:var(--bad)} .bres.open,.bres.void{color:var(--muted);font-size:14px}
+.bteams{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.bteam{display:grid;justify-items:center;gap:6px;border:2px solid var(--line);background:var(--bg);border-radius:12px;padding:12px 6px;font-weight:700;font-size:14px;text-align:center}
+.bteam .tl{width:40px;height:40px;padding:5px}
+.bteam.on{border-color:var(--glow);background:color-mix(in srgb,var(--glow) 12%,var(--bg))}
+.presets{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.presets .btn{padding:5px 10px;font-size:13px}
+.bnote{font-size:12px;color:var(--muted);margin-top:8px}
+.bwin{font-weight:700;margin-top:6px;min-height:20px}
+.bmsg{font-size:12px;color:var(--bad);min-height:18px}
 @media (prefers-reduced-motion:no-preference){.m{transition:border-color .15s}}
 </style>
 <style>
@@ -217,7 +244,7 @@ select,input[type=number],input[type=datetime-local]{font:inherit;color:var(--in
 <header>
   <div class="title">
     <div><h1 class="logo" role="img" aria-label="Worlds 2026"></h1></div>
-    <span class="acts"><button class="btn ghost" id="eye" title="Afficher ou masquer les cartes pour voir le visuel">Visuel</button><button class="btn ghost" id="refresh">Actualiser</button></span>
+    <span class="acts"><button class="btn ghost" id="wallet" aria-label="Mes jetons">1 000 jetons</button><button class="btn ghost" id="eye" title="Afficher ou masquer les cartes pour voir le visuel">Visuel</button><button class="btn ghost" id="refresh">Actualiser</button></span>
   </div>
   <div class="bar">
     <div class="tabs" role="tablist" id="tabs">
@@ -226,6 +253,7 @@ select,input[type=number],input[type=datetime-local]{font:inherit;color:var(--in
       <button role="tab" data-t="qf" aria-selected="false">Quarts</button>
       <button role="tab" data-t="sf" aria-selected="false">Demies</button>
       <button role="tab" data-t="f" aria-selected="false">Finale</button>
+      <button role="tab" data-t="bets" aria-selected="false">Paris</button>
     </div>
     <div class="favbar"><label class="fav-toggle"><input type="checkbox" id="favOnly"> Mes favoris uniquement</label><button class="btn" id="favEdit">Choisir</button></div>
   </div>
@@ -235,6 +263,18 @@ select,input[type=number],input[type=datetime-local]{font:inherit;color:var(--in
 <footer class="foot"><div>Heures affichées en heure de Paris · Allen (Texas) puis Brooklyn</div><div id="status" role="status"></div><div>Données : API publique de lolesports.com · Site de fan non officiel, sans but commercial. Worlds 2026, le logo et les visuels appartiennent à Riot Games.</div></footer>
 </div>
 
+<dialog id="betDlg">
+  <form method="dialog" id="betForm">
+    <h3 id="betTitle">Parier</h3>
+    <div id="betTeams" class="bteams"></div>
+    <label>Mise (jetons)<input type="number" id="betStake" min="10" step="10" inputmode="numeric"></label>
+    <div id="betPresets" class="presets"><button type="button" class="btn" data-v="50">50</button><button type="button" class="btn" data-v="100">100</button><button type="button" class="btn" data-v="250">250</button><button type="button" class="btn" data-v="500">500</button><button type="button" class="btn" data-v="max">Tout</button></div>
+    <div class="bnote" id="betBal"></div>
+    <div class="bwin" id="betWin"></div>
+    <div class="bmsg" id="betMsg"></div>
+    <div class="actions" style="justify-content:flex-end"><button type="button" class="btn" id="betCancel">Annuler</button><button type="submit" class="btn primary" id="betOk">Valider le pari</button></div>
+  </form>
+</dialog>
 <dialog id="favDlg">
   <h3>Mes équipes favorites</h3>
   <div id="favList"></div>
@@ -343,11 +383,11 @@ function matchCard(m){
   var time=m.t?fHour.format(new Date(m.t)):'—';
   var sm=m.t?'':'';
   var pill=m.live?'<span class="pill live">En direct</span>':(done?'<span class="pill done">Terminé</span>':(m.est?'<span class="pill est">Horaire estimé</span>':''));
-  return '<button class="m" data-id="'+m.id+'" aria-label="Modifier le match">'+
+  return '<div class="m" data-id="'+m.id+'" role="button" tabindex="0" aria-label="Modifier le match">'+
     '<div class="time">'+time+'<small>'+esc(m.t?(isNight(m)?'dans la nuit':''):'date seule')+'</small></div>'+
     '<div class="rows"><div class="row"><span class="n">'+teamHtml(t[0],done&&w!==t[0])+'</span><span class="sc'+(done&&w===t[0]?' w':'')+'">'+esc(sa)+'</span></div>'+
     '<div class="row"><span class="n">'+teamHtml(t[1],done&&w!==t[1])+'</span><span class="sc'+(done&&w===t[1]?' w':'')+'">'+esc(sb)+'</span></div></div>'+
-    '<div class="tag"><span>'+esc(m.label)+'</span><span class="pill">'+esc(m.fmt)+'</span>'+pill+'</div></button>';
+    '<div class="tag"><span>'+esc(m.label)+'</span><span class="pill">'+esc(m.fmt)+'</span>'+pill+'</div>'+betHtml(m)+'</div>';
 }
 function sorted(){
   return state.matches.slice().sort(function(a,b){return (a.t||a.day+'T00:00:00Z').localeCompare(b.t||b.day+'T00:00:00Z');});
@@ -419,16 +459,17 @@ function renderKo(){
 function koCard(m){
   var t=teams(m),w=winner(m),done=!!w;
   var when=m.t?fShort.format(new Date(m.t))+(m.est?' (estimé)':''):'';
-  return '<button class="m" data-id="'+m.id+'">'+
+  return '<div class="m" data-id="'+m.id+'" role="button" tabindex="0">'+
     '<div class="rows"><div class="row"><span class="n">'+teamHtml(t[0],done&&w!==t[0])+'</span><span class="sc'+(done&&w===t[0]?' w':'')+'">'+esc(m.sa==null?'':m.sa)+'</span></div>'+
     '<div class="row"><span class="n">'+teamHtml(t[1],done&&w!==t[1])+'</span><span class="sc'+(done&&w===t[1]?' w':'')+'">'+esc(m.sb==null?'':m.sb)+'</span></div></div>'+
-    '<div class="when">'+esc(m.label)+' · '+esc(m.fmt)+'<br>'+esc(when)+'</div></button>';
+    '<div class="when">'+esc(m.label)+' · '+esc(m.fmt)+'<br>'+esc(when)+'</div>'+betHtml(m)+'</div>';
 }
 function render(){
-  if(['pi','swiss','qf','sf','f'].indexOf(ui.tab)<0)ui.tab='swiss';
+  if(['pi','swiss','qf','sf','f','bets'].indexOf(ui.tab)<0)ui.tab='swiss';
   var intro={qf:'Le tirage des quarts a lieu après la phase suisse : touche un quart pour choisir les équipes.',sf:'Les finalistes sont les vainqueurs des quarts : ils avancent automatiquement.',f:'Finale au Barclays Center, Brooklyn. Les finalistes sont les vainqueurs des demies.'}[ui.tab];
   document.body.setAttribute('data-tab',ui.tab);
-  $('view').innerHTML=(ui.tab==='swiss'?renderSwiss():'')+(intro?'<p class="note">'+intro+'</p>':'')+renderCal();
+  $('view').innerHTML=ui.tab==='bets'?renderBets():(ui.tab==='swiss'?renderSwiss():'')+(intro?'<p class="note">'+intro+'</p>':'')+renderCal();
+  renderWallet();
   Array.prototype.forEach.call($('tabs').children,function(b){b.setAttribute('aria-selected',b.dataset.t===ui.tab);});
   $('favOnly').checked=ui.favOnly;
   renderNext();renderStatus();
@@ -504,6 +545,7 @@ function rebuild(){
   state.matches=buildDefault();
   if(apiEvents)applyApi(apiEvents);
   applyOver();
+  resolveBets();
 }
 function loadApi(manual){
   return fetch(API_URL,{headers:{'x-api-key':API_KEY}}).then(function(r){if(!r.ok)throw new Error('http '+r.status);return r.json();})
@@ -533,6 +575,101 @@ $('refresh').onclick=function(){
   loadApi(true).then(function(){b.disabled=false;});
 };
 
+/* ---- paris en jetons Worlds (prototype, jetons fictifs, stockes dans ce navigateur) ---- */
+var ODDS=1.9,START=1000,wallet={balance:START,bets:[]},betting=null;
+try{var wb=JSON.parse(localStorage.getItem('w26bets')||'null');if(wb&&wb.bets&&typeof wb.balance==='number')wallet=wb;}catch(e){}
+function saveW(){try{localStorage.setItem('w26bets',JSON.stringify(wallet));}catch(e){}}
+function fmtN(n){return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,' ');}
+function betFor(id){return wallet.bets.filter(function(b){return b.matchId===id;})[0];}
+function canBet(m){
+  var t=teams(m);
+  return !!(t[0]&&t[1]&&!winner(m)&&!m.live&&m.t&&Date.parse(m.t)>Date.now()&&!betFor(m.id));
+}
+function resolveBets(){
+  var changed=false;
+  wallet.bets.forEach(function(b){
+    if(b.status!=='open')return;
+    var m=state.matches.filter(function(x){return x.id===b.matchId;})[0];if(!m)return;
+    var t=teams(m);
+    if(t.indexOf(b.team)<0){b.status='void';b.payout=b.stake;wallet.balance+=b.stake;changed=true;return;}
+    var w=winner(m);if(!w||w==='?')return;
+    if(w===b.team){b.status='won';b.payout=Math.round(b.stake*b.odds);wallet.balance+=b.payout;}
+    else{b.status='lost';b.payout=0;}
+    changed=true;
+  });
+  if(changed)saveW();
+}
+var BSTAT={open:'En cours',won:'Gagné',lost:'Perdu',void:'Remboursé'};
+function betHtml(m){
+  var b=betFor(m.id);
+  if(b){
+    var gain=b.status==='won'?' · +'+fmtN(b.payout-b.stake):b.status==='lost'?' · −'+fmtN(b.stake):b.status==='void'?'':' · gain possible '+fmtN(b.stake*b.odds);
+    return '<div class="betrow"><span class="bchip '+b.status+'">'+logo(b.team)+'Pari sur '+esc(b.team)+' · '+fmtN(b.stake)+gain+'</span></div>';
+  }
+  if(canBet(m))return '<div class="betrow"><button class="bet" data-bet="'+m.id+'">Parier</button><span class="odds">cote '+ODDS.toFixed(2).replace('.',',')+'</span></div>';
+  return '';
+}
+function renderWallet(){
+  var open=wallet.bets.filter(function(b){return b.status==='open';}).reduce(function(s,b){return s+b.stake;},0);
+  $('wallet').textContent=fmtN(wallet.balance)+' jetons';
+  $('wallet').title=open?fmtN(open)+' jetons engagés dans des paris en cours':'Jetons Worlds (fictifs)';
+}
+function renderBets(){
+  var open=wallet.bets.filter(function(b){return b.status==='open';}),done=wallet.bets.filter(function(b){return b.status!=='open';}).slice().reverse();
+  var won=done.filter(function(b){return b.status==='won';}).length,lost=done.filter(function(b){return b.status==='lost';}).length;
+  var net=wallet.balance+open.reduce(function(s,b){return s+b.stake;},0)-START;
+  function row(b){
+    var m=state.matches.filter(function(x){return x.id===b.matchId;})[0];
+    var when=m&&m.t?fShort.format(new Date(m.t)):'';
+    var res=b.status==='won'?'+'+fmtN(b.payout-b.stake):b.status==='lost'?'−'+fmtN(b.stake):b.status==='void'?'remboursé':'gain possible '+fmtN(b.stake*b.odds);
+    return '<div class="brow"><div class="btop">'+teamHtml(b.team)+'<b class="bres '+b.status+'">'+res+'</b></div>'+
+      '<div class="bsub">'+esc(b.a)+' vs '+esc(b.b)+' · mise '+fmtN(b.stake)+' à '+b.odds.toFixed(2).replace('.',',')+(when?' · '+esc(when):'')+' · '+BSTAT[b.status]+'</div></div>';
+  }
+  var h='<div class="wcard"><div class="wl">Mes jetons Worlds</div><div class="wbig">'+fmtN(wallet.balance)+'</div>'+
+    '<div class="wsub">'+open.length+' pari'+(open.length>1?'s':'')+' en cours · '+won+' gagné'+(won>1?'s':'')+' · '+lost+' perdu'+(lost>1?'s':'')+' · bilan '+(net>=0?'+':'−')+fmtN(Math.abs(net))+'</div></div>';
+  if(open.length)h+='<section class="day"><h2>Paris en cours</h2>'+open.map(row).join('')+'</section>';
+  if(done.length)h+='<section class="day"><h2>Historique</h2>'+done.map(row).join('')+'</section>';
+  if(!wallet.bets.length)h+='<p class="note">Aucun pari pour l\'instant. Va sur un match à venir et touche « Parier ».</p>';
+  if(wallet.balance<10&&!open.length)h+='<button class="btn primary" data-act="refill">Recevoir 500 jetons</button>';
+  h+='<p class="note">Jetons fictifs, sans aucune valeur. Cote fixe de '+ODDS.toFixed(2).replace('.',',')+' sur le vainqueur du match. Tu peux miser jusqu\'au début du match. Les paris se règlent seuls dès que le résultat officiel est publié.</p>'+
+    '<button class="btn" data-act="resetbets">Recommencer à '+fmtN(START)+' jetons</button>';
+  return h;
+}
+function openBet(id){
+  var m=state.matches.filter(function(x){return x.id===id;})[0];if(!m||!canBet(m))return;
+  betting={m:m,team:null};
+  var t=teams(m);
+  $('betTitle').textContent=m.label+' · '+m.fmt;
+  $('betTeams').innerHTML=t.map(function(n){return '<button type="button" class="bteam" data-team="'+esc(n)+'">'+logo(n)+'<span>'+esc(n)+'</span></button>';}).join('');
+  $('betStake').value=Math.min(100,wallet.balance);$('betStake').max=wallet.balance;
+  $('betBal').textContent=fmtN(wallet.balance)+' jetons disponibles';
+  updateBet();
+  $('betDlg').showModal();
+}
+function updateBet(){
+  var stake=Math.floor(+$('betStake').value||0),ok=betting&&betting.team&&stake>=10&&stake<=wallet.balance;
+  Array.prototype.forEach.call($('betTeams').children,function(b){b.classList.toggle('on',b.dataset.team===(betting&&betting.team));});
+  $('betWin').textContent=stake>=1?'Gain possible : '+fmtN(stake*ODDS)+' jetons (cote '+ODDS.toFixed(2).replace('.',',')+')':'';
+  $('betOk').disabled=!ok;
+  $('betMsg').textContent=!betting||!betting.team?'Choisis une équipe.':stake<10?'Mise minimale : 10 jetons.':stake>wallet.balance?'Tu n\'as pas assez de jetons.':'';
+}
+$('betTeams').addEventListener('click',function(e){var b=e.target.closest('.bteam');if(!b)return;betting.team=b.dataset.team;updateBet();});
+$('betStake').addEventListener('input',updateBet);
+$('betPresets').addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b)return;
+  $('betStake').value=b.dataset.v==='max'?wallet.balance:Math.min(+b.dataset.v,wallet.balance);updateBet();
+});
+$('betCancel').onclick=function(){$('betDlg').close();};
+$('betForm').addEventListener('submit',function(e){
+  e.preventDefault();
+  var m=betting&&betting.m,stake=Math.floor(+$('betStake').value||0);
+  if(!m||!betting.team||stake<10||stake>wallet.balance||!canBet(m))return;
+  var t=teams(m);
+  wallet.balance-=stake;
+  wallet.bets.push({matchId:m.id,a:t[0],b:t[1],team:betting.team,stake:stake,odds:ODDS,at:Date.now(),status:'open',payout:0});
+  saveW();$('betDlg').close();render();
+});
+$('wallet').onclick=function(){ui.tab='bets';try{localStorage.setItem('w26tab','bets');}catch(x){}render();};
 /* ---- editing ---- */
 function opts(sel,val){sel.innerHTML='<option value="">À déterminer</option>'+TEAMS.concat(['Cloud9 KIA','FURIA','MVK Esports']).map(function(t){return '<option'+(t===val?' selected':'')+'>'+esc(t)+'</option>';}).join('');}
 function openEdit(id){
@@ -546,7 +683,11 @@ function openEdit(id){
   $('fT').value=m.t?toParisInput(m.t):'';
   $('dlg').showModal();
 }
-$('view').addEventListener('click',function(e){var b=e.target.closest('.m');if(b)openEdit(b.dataset.id);});
+$('view').addEventListener('click',function(e){
+  var bb=e.target.closest('[data-bet]');if(bb){openBet(bb.dataset.bet);return;}
+  var b=e.target.closest('.m');if(b)openEdit(b.dataset.id);
+});
+$('view').addEventListener('keydown',function(e){if(e.key!=='Enter'&&e.key!==' ')return;var b=e.target.closest('div.m');if(b&&e.target===b){e.preventDefault();openEdit(b.dataset.id);}});
 $('fCancel').onclick=function(){$('dlg').close();};
 $('fClear').onclick=function(){if(editing){delete over[editing.id];persist();rebuild();render();}$('dlg').close();};
 $('form').addEventListener('submit',function(e){
@@ -569,6 +710,8 @@ $('tabs').addEventListener('click',function(e){var b=e.target.closest('button');
 $('view').addEventListener('click',function(e){
   var b=e.target.closest('[data-act]');if(!b||b.disabled)return;
   var a=b.dataset.act;
+  if(a==='refill'){wallet.balance+=500;saveW();render();return;}
+  if(a==='resetbets'){wallet={balance:START,bets:[]};saveW();render();return;}
   if(a==='fold'){ui.fold=!ui.fold;try{localStorage.setItem('w26fold',ui.fold?'1':'0');}catch(x){}render();return;}
   var list=sorted().filter(function(m){return inTab(m,ui.tab)&&(!ui.favOnly||hasFav(m));}),keys=[];
   list.forEach(function(m){var k=dayKey(m);if(keys.indexOf(k)<0)keys.push(k);});
